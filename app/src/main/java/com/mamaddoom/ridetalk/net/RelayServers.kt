@@ -65,6 +65,8 @@ object RelayServers {
         Server("mosquitto-8883", "Mosquitto (8883)", "test.mosquitto.org", 8883, score = 0),
         Server("emqx-cn", "EMQX (alt)", "broker-cn.emqx.io", 8883, score = 0),
         Server("flespi", "flespi", "mqtt.flespi.io", 8883, score = 0),
+        // ThingsBoard's public TBMQ demo broker (documented login: user "demo", no password).
+        Server("tbmq", "TBMQ", "demo.tbmq.io", 8883, score = 0, user = "demo"),
         Server("abrbit-tls", "Abrbit 🇮🇷 (TLS)", "mqtt.services.abrbit.com", 8883, score = 0),
         Server("abrbit", "Abrbit 🇮🇷", "mqtt.services.abrbit.com", 1883, score = 0, tls = false),
     )
