@@ -739,38 +739,140 @@ class HomeActivity : Activity() {
 
     private var serverListKey = ""
 
-    /** "Automatic" plus one row per server, with its score; the chosen one highlighted. */
+    /**
+     * "Automatic", the public servers with their scores, the Iranian ones
+     * (🇮🇷, need your login) and your own server; the chosen one highlighted.
+     */
     private fun buildServerList() {
         val list = findViewById<LinearLayout>(R.id.serverList)
-        val key = settings.onlineServer
+        val rs = com.mamaddoom.ridetalk.net.RelayServers
+        val chosen = settings.onlineServer
+        val usable = settings.relayServers().map { it.id }.toSet()
+        val key = chosen + usable.joinToString() + settings.customServerName() + settings.customServerHost()
         if (key == serverListKey && list.childCount > 0) return
         serverListKey = key
         list.removeAllViews()
-        val rows = listOf("" to getString(R.string.online_auto)) +
-            com.mamaddoom.ridetalk.net.RelayServers.ALL.map { srv ->
-                srv.id to "🛰 ${srv.name}  ·  ${getString(R.string.online_score, srv.score)}"
-            }
-        for ((id, label) in rows) {
-            list.addView(TextView(this).apply {
-                text = label
-                setTextColor(colorOf(if (id == key) R.attr.cAccent else R.attr.cText))
-                setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f)
-                gravity = Gravity.CENTER_VERTICAL
-                minHeight = dp(52)
-                setPaddingRelative(dp(16), dp(6), dp(12), dp(6))
-                background = getDrawable(R.drawable.button)
-                isSelected = id == key
-                layoutParams = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT,
-                ).apply { topMargin = dp(6) }
-                setOnClickListener { v ->
-                    pop(v)
-                    val e = engine
-                    if (e != null) e.setOnlineServer(id) else settings.onlineServer = id
-                    buildServerList()
-                }
+        list.addView(serverRow(getString(R.string.online_auto), "", chosen.isEmpty()) { selectServer("") })
+        for (srv in rs.ALL) {
+            list.addView(serverRow("🛰 ${srv.name}  ·  ${getString(R.string.online_score, srv.score)}", "", chosen == srv.id) {
+                selectServer(srv.id)
             })
         }
+        for (srv in rs.IRAN) {
+            val ready = srv.id in usable
+            val row = serverRow(
+                "🇮🇷 ${srv.name}  ·  ${getString(R.string.online_iran)}",
+                getString(if (ready) R.string.online_login_ok else R.string.online_login_needed),
+                chosen == srv.id,
+            ) { if (ready) selectServer(srv.id) else editServerLogin(srv.id, srv.name, custom = false) }
+            row.setOnLongClickListener { editServerLogin(srv.id, srv.name, custom = false); true }
+            list.addView(row)
+        }
+        val customReady = rs.CUSTOM_ID in usable
+        val customName = settings.customServerName().ifEmpty { settings.customServerHost() }
+        val custom = serverRow(
+            if (customReady) "⭐ $customName" else getString(R.string.online_custom_add),
+            if (customReady) getString(R.string.online_custom_edit) else "",
+            chosen == rs.CUSTOM_ID,
+        ) { if (customReady) selectServer(rs.CUSTOM_ID) else editServerLogin(rs.CUSTOM_ID, "", custom = true) }
+        custom.setOnLongClickListener { editServerLogin(rs.CUSTOM_ID, customName, custom = true); true }
+        list.addView(custom)
+    }
+
+    private fun serverRow(label: String, detail: String, selected: Boolean, onClick: () -> Unit): View =
+        LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER_VERTICAL
+            minimumHeight = dp(52)
+            setPaddingRelative(dp(16), dp(8), dp(12), dp(8))
+            background = getDrawable(R.drawable.button)
+            isSelected = selected
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT,
+            ).apply { topMargin = dp(6) }
+            addView(TextView(context).apply {
+                text = label
+                setTextColor(colorOf(if (selected) R.attr.cAccent else R.attr.cText))
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f)
+            })
+            if (detail.isNotEmpty()) addView(TextView(context).apply {
+                text = detail
+                setTextColor(colorOf(R.attr.cTextDim))
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
+            })
+            setOnClickListener { v ->
+                pop(v)
+                onClick()
+            }
+        }
+
+    private fun selectServer(id: String) {
+        val e = engine
+        if (e != null) e.setOnlineServer(id) else settings.onlineServer = id
+        buildServerList()
+    }
+
+    /**
+     * Login for an Iranian server, or the whole address for your own server.
+     * Stored only on this phone; never in the app's code.
+     */
+    private fun editServerLogin(id: String, name: String, custom: Boolean) {
+        val current = settings.serverLogin(id)
+        val base = com.mamaddoom.ridetalk.net.RelayServers.byId(id)
+        fun field(hint: Int, value: String, type: Int) = EditText(this).apply {
+            setHint(hint)
+            setText(value)
+            inputType = type
+            isSingleLine = true
+        }
+        val text = android.text.InputType.TYPE_CLASS_TEXT
+        val nameField = field(R.string.srv_name, settings.customServerName(), text)
+        val hostField = field(R.string.srv_host, settings.customServerHost(), text or android.text.InputType.TYPE_TEXT_VARIATION_URI)
+        val portField = field(R.string.srv_port, (current?.port ?: base?.port ?: 1883).toString(), android.text.InputType.TYPE_CLASS_NUMBER)
+        val userField = field(R.string.srv_user, current?.user ?: base?.user.orEmpty(), text)
+        val passField = field(R.string.srv_pass, current?.password.orEmpty(), text or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD)
+        val tlsBox = android.widget.CheckBox(this).apply {
+            setText(R.string.srv_tls)
+            isChecked = current?.tls ?: base?.tls ?: false
+        }
+        val form = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(20), dp(8), dp(20), 0)
+            if (custom) {
+                addView(nameField)
+                addView(hostField)
+            }
+            addView(portField)
+            addView(userField)
+            addView(passField)
+            addView(tlsBox)
+            addView(TextView(context).apply {
+                setText(R.string.srv_note)
+                setTextColor(colorOf(R.attr.cTextDim))
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
+                setPadding(0, dp(8), 0, 0)
+            })
+        }
+        AlertDialog.Builder(this)
+            .setTitle(if (custom) getString(R.string.online_custom_title) else "🇮🇷 $name")
+            .setView(android.widget.ScrollView(this).apply { addView(form) })
+            .setPositiveButton(R.string.srv_save) { _, _ ->
+                val port = portField.text.toString().toIntOrNull()?.takeIf { it in 1..65535 } ?: 1883
+                if (custom && hostField.text.isBlank()) return@setPositiveButton
+                settings.setServerLogin(
+                    id,
+                    if (custom) hostField.text.toString() else null,
+                    if (custom) nameField.text.toString() else null,
+                    Settings.ServerLogin(port, userField.text.toString(), passField.text.toString(), tlsBox.isChecked),
+                )
+                selectServer(id)
+            }
+            .setNeutralButton(R.string.srv_remove) { _, _ ->
+                settings.setServerLogin(id, null, null, null)
+                if (settings.onlineServer == id) selectServer("") else buildServerList()
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
     }
 
     private fun onlineStatusText(st: Engine.State?): String {

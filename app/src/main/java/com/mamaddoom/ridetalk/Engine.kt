@@ -242,7 +242,7 @@ class Engine(
         startedMs = System.currentTimeMillis()
         lastPeerMs = 0
         transport = if (settings.online) {
-            OnlineTransport(myId, this, { settings.onlineServer.ifEmpty { null } }, ::notifyState)
+            OnlineTransport(myId, this, { settings.onlineServer.ifEmpty { null } }, settings::relayServers, ::notifyState)
         } else {
             Transport(context, myId, this)
         }

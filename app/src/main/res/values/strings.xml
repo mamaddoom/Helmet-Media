@@ -306,4 +306,19 @@
     <string name="online_offline">⚠️ No internet or no server reachable, retrying…</string>
     <string name="online_off">Starts when you press Start</string>
     <string name="online_restart">Switching… the intercom restarts</string>
+    <string name="online_iran">Iran</string>
+    <string name="online_login_ok">✓ login saved · hold to edit</string>
+    <string name="online_login_needed">🔑 tap to enter your login</string>
+    <string name="online_custom_add">➕ My own server</string>
+    <string name="online_custom_edit">hold to edit</string>
+    <string name="online_custom_title">⭐ My own server</string>
+    <string name="srv_name">Name (e.g. My server)</string>
+    <string name="srv_host">Address (e.g. mqtt.example.com)</string>
+    <string name="srv_port">Port (1883, or 8883 with TLS)</string>
+    <string name="srv_user">Username</string>
+    <string name="srv_pass">Password</string>
+    <string name="srv_tls">Secure connection (TLS)</string>
+    <string name="srv_note">Saved only on this phone. Every rider in the group needs the same server. Voice stays encrypted with your group code, so the server can’t hear it.</string>
+    <string name="srv_save">Save</string>
+    <string name="srv_remove">Remove</string>
 </resources>

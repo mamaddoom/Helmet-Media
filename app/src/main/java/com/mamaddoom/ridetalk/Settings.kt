@@ -23,7 +23,7 @@ class Settings(context: Context) {
         if (p.getInt("schema", 0) >= SCHEMA) return
         val keep = setOf("name", "group", "playlist", "trackIndex", "shuffle", "theme", "lang", "onboarded")
         val e = p.edit()
-        for (k in p.all.keys) if (k !in keep) e.remove(k)
+        for (k in p.all.keys) if (k !in keep && !k.startsWith("srv_")) e.remove(k)
         e.putInt("schema", SCHEMA)
         e.commit()
     }
@@ -57,6 +57,50 @@ class Settings(context: Context) {
     var onlineServer: String
         get() = p.getString("onlineServer", "").orEmpty()
         set(v) = p.edit().putString("onlineServer", v).apply()
+
+    /** A login typed on this phone for a server that needs one: port, user, password, TLS. */
+    class ServerLogin(val port: Int, val user: String, val password: String, val tls: Boolean)
+
+    fun serverLogin(id: String): ServerLogin? {
+        val host = if (id == com.mamaddoom.ridetalk.net.RelayServers.CUSTOM_ID) p.getString("srv_${id}_host", "").orEmpty() else "x"
+        val pass = p.getString("srv_${id}_pass", "").orEmpty()
+        val user = p.getString("srv_${id}_user", "").orEmpty()
+        if (host.isEmpty() || (pass.isEmpty() && user.isEmpty() && id != com.mamaddoom.ridetalk.net.RelayServers.CUSTOM_ID)) return null
+        return ServerLogin(p.getInt("srv_${id}_port", 1883), user, pass, p.getBoolean("srv_${id}_tls", false))
+    }
+
+    fun setServerLogin(id: String, host: String?, name: String?, l: ServerLogin?) {
+        val e = p.edit()
+        if (l == null) {
+            for (k in listOf("host", "name", "port", "user", "pass", "tls")) e.remove("srv_${id}_$k")
+        } else {
+            host?.let { e.putString("srv_${id}_host", it.trim()) }
+            name?.let { e.putString("srv_${id}_name", it.trim()) }
+            e.putInt("srv_${id}_port", l.port).putString("srv_${id}_user", l.user.trim())
+                .putString("srv_${id}_pass", l.password).putBoolean("srv_${id}_tls", l.tls)
+        }
+        e.apply()
+    }
+
+    fun customServerHost() = p.getString("srv_custom_host", "").orEmpty()
+    fun customServerName() = p.getString("srv_custom_name", "").orEmpty()
+
+    /**
+     * Every relay this phone can use, in automatic order: the public ones (best
+     * first), then the Iranian ones with a login, then your own server if set up.
+     */
+    fun relayServers(): List<com.mamaddoom.ridetalk.net.RelayServers.Server> {
+        val rs = com.mamaddoom.ridetalk.net.RelayServers
+        val out = ArrayList(rs.ALL)
+        for (s in rs.IRAN) serverLogin(s.id)?.let { out += s.withLogin(it.port, it.user.ifEmpty { s.user.orEmpty() }, it.password, it.tls) }
+        serverLogin(rs.CUSTOM_ID)?.let {
+            out += com.mamaddoom.ridetalk.net.RelayServers.Server(
+                rs.CUSTOM_ID, customServerName().ifEmpty { customServerHost() }, customServerHost(), it.port, 0,
+            )
+                .withLogin(it.port, it.user, it.password, it.tls)
+        }
+        return out
+    }
 
     /** Spoken announcements ("music mode", "Sara joined") instead of beeps, when the phone can speak. */
     var voicePrompts: Boolean

@@ -26,6 +26,8 @@ class OnlineTransport(
     private val listener: Transport.Listener,
     /** Pinned server id, or null for automatic. Read on every (re)connect. */
     private val pinned: () -> String?,
+    /** Servers in automatic order, with any logins filled in. Read on every (re)connect. */
+    private val servers: () -> List<RelayServers.Server>,
     private val onStatus: () -> Unit,
 ) : Link {
 
@@ -107,8 +109,8 @@ class OnlineTransport(
                 sleep(500)
                 continue
             }
-            val order = pinned()?.let { id -> listOfNotNull(RelayServers.byId(id)) }?.ifEmpty { null }
-                ?: RelayServers.ALL
+            val all = servers()
+            val order = pinned()?.let { id -> all.filter { it.id == id } }?.ifEmpty { null } ?: all
             var connected = false
             for (s in order) {
                 if (!running || crypto !== c) break

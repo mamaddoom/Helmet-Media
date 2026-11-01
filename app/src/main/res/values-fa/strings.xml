@@ -306,4 +306,19 @@
     <string name="online_offline">⚠️ اینترنت یا سرور در دسترس نیست، دوباره تلاش می‌کند…</string>
     <string name="online_off">با زدن «شروع» وصل می‌شود</string>
     <string name="online_restart">در حال تغییر… اینترکام دوباره شروع می‌شود</string>
+    <string name="online_iran">ایران</string>
+    <string name="online_login_ok">✓ ورود ذخیره شده · برای ویرایش نگه دارید</string>
+    <string name="online_login_needed">🔑 برای وارد کردن نام کاربری و رمز بزنید</string>
+    <string name="online_custom_add">➕ سرور خودم</string>
+    <string name="online_custom_edit">برای ویرایش نگه دارید</string>
+    <string name="online_custom_title">⭐ سرور خودم</string>
+    <string name="srv_name">اسم (مثلاً سرور من)</string>
+    <string name="srv_host">آدرس (مثلاً mqtt.example.com)</string>
+    <string name="srv_port">پورت (1883، یا 8883 با TLS)</string>
+    <string name="srv_user">نام کاربری</string>
+    <string name="srv_pass">رمز عبور</string>
+    <string name="srv_tls">اتصال امن (TLS)</string>
+    <string name="srv_note">فقط روی همین گوشی ذخیره می‌شود. همهٔ اعضای گروه باید همین سرور را داشته باشند. صدا با کد گروه رمزگذاری می‌ماند و سرور نمی‌تواند آن را بشنود.</string>
+    <string name="srv_save">ذخیره</string>
+    <string name="srv_remove">حذف</string>
 </resources>

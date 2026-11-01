@@ -21,7 +21,14 @@ object RelayServers {
         val password: String? = null,
         /** False for servers that only offer plain TCP; the audio is end-to-end encrypted anyway. */
         val tls: Boolean = true,
-    )
+        /** Needs the user's own login (typed on the phone, stored only there). */
+        val needsLogin: Boolean = false,
+        /** Shown with the Iranian flag. */
+        val iran: Boolean = false,
+    ) {
+        fun withLogin(port: Int, user: String, password: String, tls: Boolean) =
+            Server(id, name, host, port, score, user.ifEmpty { null }, password.ifEmpty { null }, tls, needsLogin, iran)
+    }
 
     // Probed from GitHub's servers on 2026-10-30 (150 packets of 300 bytes at 50/s and 25/s):
     //   HiveMQ    connect ~0.4-0.6 s, round trip ~115 ms, loss 0%   -> 83
@@ -33,6 +40,20 @@ object RelayServers {
         Server("hivemq", "HiveMQ", "broker.hivemq.com", 8883, score = 83),
         Server("shiftr", "shiftr.io", "public.cloud.shiftr.io", 8883, score = 82, user = "public", password = "public"),
     ).sortedByDescending { it.score }
+
+    /**
+     * Iranian servers: free Mosquitto brokers that need an account of your own
+     * (Runflare: your app's login; Abrbit: your account). Not scored: they can't
+     * be measured from outside Iran. Tried after the public ones in automatic mode,
+     * and only once their login is filled in.
+     */
+    val IRAN: List<Server> = listOf(
+        Server("runflare", "Runflare", "mqtt-slw-mqtt.runflare.cloud", 1883, score = 0, user = "mqtt", tls = false, needsLogin = true, iran = true),
+        Server("abrbit", "Abrbit", "mqtt.services.abrbit.com", 1883, score = 0, tls = false, needsLogin = true, iran = true),
+    )
+
+    /** Id of the user's own server, set up on the phone. */
+    const val CUSTOM_ID = "custom"
 
     /** Also probed in CI, to replace a weak entry above if one of these does better. */
     val CANDIDATES: List<Server> = ALL + listOf(
@@ -48,5 +69,5 @@ object RelayServers {
         Server("abrbit", "Abrbit 🇮🇷", "mqtt.services.abrbit.com", 1883, score = 0, tls = false),
     )
 
-    fun byId(id: String) = ALL.firstOrNull { it.id == id }
+    fun byId(id: String) = (ALL + IRAN).firstOrNull { it.id == id }
 }
