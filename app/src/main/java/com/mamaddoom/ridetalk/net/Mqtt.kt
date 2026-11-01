@@ -115,6 +115,8 @@ class MqttConnection(
     private val tls: Boolean = true,
     /** Reach the broker through this (SOCKS) proxy, e.g. Tor, so the broker never sees our IP. */
     private val proxy: java.net.Proxy? = null,
+    /** MQTT over WebSocket at this path (for hosts that only expose an HTTP(S) domain), or null. */
+    private val wsPath: String? = null,
 ) {
     private var socket: Socket? = null
     private var out: OutputStream? = null
@@ -140,8 +142,16 @@ class MqttConnection(
         }
         s.soTimeout = timeoutMs
         socket = s
-        out = BufferedOutputStream(s.outputStream, 4096)
-        input = DataInputStream(s.inputStream.buffered(16 * 1024))
+        val rawIn = s.inputStream.buffered(16 * 1024)
+        if (wsPath != null) {
+            WebSocket.handshake(rawIn, s.outputStream, host, wsPath)
+            val wsOut = WsOutputStream(s.outputStream)
+            out = BufferedOutputStream(wsOut, 4096)
+            input = DataInputStream(WsInputStream(rawIn, wsOut))
+        } else {
+            out = BufferedOutputStream(s.outputStream, 4096)
+            input = DataInputStream(rawIn)
+        }
         writeRaw(MqttCodec.connect(clientId, keepAliveS, user, password))
         val ack = MqttCodec.read(input!!)
         if (ack.type != MqttCodec.CONNACK || ack.body.size < 2 || ack.body[1].toInt() != 0) {

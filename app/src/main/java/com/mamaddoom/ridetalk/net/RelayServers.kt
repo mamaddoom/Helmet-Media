@@ -25,9 +25,12 @@ object RelayServers {
         val needsLogin: Boolean = false,
         /** Shown with the Iranian flag. */
         val iran: Boolean = false,
+        /** MQTT over WebSocket at this path (servers behind a web domain), or null for plain MQTT. */
+        val ws: String? = null,
     ) {
-        fun withLogin(port: Int, user: String, password: String, tls: Boolean) =
-            Server(id, name, host, port, score, user.ifEmpty { null }, password.ifEmpty { null }, tls, needsLogin, iran)
+        fun withLogin(port: Int, user: String, password: String, tls: Boolean, ws: Boolean) =
+            Server(id, name, host, port, score, user.ifEmpty { null }, password.ifEmpty { null }, tls, needsLogin, iran,
+                if (ws) this.ws ?: "/" else null)
     }
 
     // Probed from GitHub's servers, three runs on 2026-10-30 and 11-01
@@ -46,11 +49,15 @@ object RelayServers {
 
     /**
      * Iranian server: the project's free Mosquitto on Runflare, which needs its
-     * login typed on the phone. Not scored: it can't be measured from outside
-     * Iran. Tried after the public ones in automatic mode, once the login is set.
+     * login typed on the phone. Runflare exposes only a web domain (its MQTT port
+     * is internal), so the app reaches Mosquitto's WebSocket listener through the
+     * domain's HTTPS gateway: wss on 443. Not scored: measured only from Iran.
      */
     val IRAN: List<Server> = listOf(
-        Server("runflare", "Runflare", "mqtt-slw-mqtt.runflare.cloud", 1883, score = 0, user = "mqtt", tls = false, needsLogin = true, iran = true),
+        Server(
+            "runflare", "Runflare", "mqtt-slw-mqtt.runflare.cloud", 443, score = 0, user = "mqtt",
+            needsLogin = true, iran = true, ws = "/",
+        ),
     )
 
     /** Id of the user's own server, set up on the phone. */
@@ -66,6 +73,11 @@ object RelayServers {
         Server("mosquitto-8883", "Mosquitto (8883)", "test.mosquitto.org", 8883, score = 0),
         Server("emqx-cn", "EMQX (alt)", "broker-cn.emqx.io", 8883, score = 0),
         Server("flespi", "flespi", "mqtt.flespi.io", 8883, score = 0),
+        // WebSocket variants: check the WebSocket client end to end, and whether the Runflare
+        // gateway reaches Mosquitto (without a login it should answer "refused", not fail).
+        Server("hivemq-wss", "HiveMQ (wss)", "broker.hivemq.com", 8884, score = 0, ws = "/mqtt"),
+        Server("shiftr-wss", "shiftr.io (wss)", "public.cloud.shiftr.io", 443, score = 0, user = "public", password = "public", ws = "/"),
+        Server("runflare-wss", "Runflare (wss, no login)", "mqtt-slw-mqtt.runflare.cloud", 443, score = 0, ws = "/"),
     )
 
     fun byId(id: String) = (ALL + IRAN).firstOrNull { it.id == id }

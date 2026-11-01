@@ -861,6 +861,10 @@ class HomeActivity : Activity() {
             setText(R.string.srv_tls)
             isChecked = current?.tls ?: base?.tls ?: false
         }
+        val wsBox = android.widget.CheckBox(this).apply {
+            setText(R.string.srv_ws)
+            isChecked = current?.ws ?: (base?.ws != null)
+        }
         val form = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(20), dp(8), dp(20), 0)
@@ -872,6 +876,7 @@ class HomeActivity : Activity() {
             addView(userField)
             addView(passField)
             addView(tlsBox)
+            addView(wsBox)
             addView(TextView(context).apply {
                 setText(R.string.srv_note)
                 setTextColor(colorOf(R.attr.cTextDim))
@@ -889,7 +894,7 @@ class HomeActivity : Activity() {
                     id,
                     if (custom) hostField.text.toString() else null,
                     if (custom) nameField.text.toString() else null,
-                    Settings.ServerLogin(port, userField.text.toString(), passField.text.toString(), tlsBox.isChecked),
+                    Settings.ServerLogin(port, userField.text.toString(), passField.text.toString(), tlsBox.isChecked, wsBox.isChecked),
                 )
                 selectServer(id)
             }

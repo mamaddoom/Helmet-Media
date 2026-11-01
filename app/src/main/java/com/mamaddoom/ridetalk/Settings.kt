@@ -81,25 +81,34 @@ class Settings(context: Context) {
     }
 
     /** A login typed on this phone for a server that needs one: port, user, password, TLS. */
-    class ServerLogin(val port: Int, val user: String, val password: String, val tls: Boolean)
+    class ServerLogin(val port: Int, val user: String, val password: String, val tls: Boolean, val ws: Boolean = false)
 
     fun serverLogin(id: String): ServerLogin? {
         val host = if (id == com.mamaddoom.ridetalk.net.RelayServers.CUSTOM_ID) p.getString("srv_${id}_host", "").orEmpty() else "x"
         val pass = p.getString("srv_${id}_pass", "").orEmpty()
         val user = p.getString("srv_${id}_user", "").orEmpty()
         if (host.isEmpty() || (pass.isEmpty() && user.isEmpty() && id != com.mamaddoom.ridetalk.net.RelayServers.CUSTOM_ID)) return null
-        return ServerLogin(p.getInt("srv_${id}_port", 1883), user, pass, p.getBoolean("srv_${id}_tls", false))
+        val base = com.mamaddoom.ridetalk.net.RelayServers.byId(id)
+        // Runflare logins saved by 1.0.25-1.0.28 used port 1883, which Runflare doesn't expose.
+        if (id == "runflare" && p.getInt("srv_${id}_port", 443) == 1883 && base != null) {
+            return ServerLogin(base.port, user, pass, base.tls, base.ws != null)
+        }
+        return ServerLogin(
+            p.getInt("srv_${id}_port", base?.port ?: 1883), user, pass,
+            p.getBoolean("srv_${id}_tls", base?.tls ?: false), p.getBoolean("srv_${id}_ws", base?.ws != null),
+        )
     }
 
     fun setServerLogin(id: String, host: String?, name: String?, l: ServerLogin?) {
         val e = p.edit()
         if (l == null) {
-            for (k in listOf("host", "name", "port", "user", "pass", "tls")) e.remove("srv_${id}_$k")
+            for (k in listOf("host", "name", "port", "user", "pass", "tls", "ws")) e.remove("srv_${id}_$k")
         } else {
             host?.let { e.putString("srv_${id}_host", it.trim()) }
             name?.let { e.putString("srv_${id}_name", it.trim()) }
             e.putInt("srv_${id}_port", l.port).putString("srv_${id}_user", l.user.trim())
                 .putString("srv_${id}_pass", l.password).putBoolean("srv_${id}_tls", l.tls)
+                .putBoolean("srv_${id}_ws", l.ws)
         }
         e.apply()
     }
@@ -114,12 +123,12 @@ class Settings(context: Context) {
     fun relayServers(): List<com.mamaddoom.ridetalk.net.RelayServers.Server> {
         val rs = com.mamaddoom.ridetalk.net.RelayServers
         val out = ArrayList(rs.ALL)
-        for (s in rs.IRAN) serverLogin(s.id)?.let { out += s.withLogin(it.port, it.user.ifEmpty { s.user.orEmpty() }, it.password, it.tls) }
+        for (s in rs.IRAN) serverLogin(s.id)?.let { out += s.withLogin(it.port, it.user.ifEmpty { s.user.orEmpty() }, it.password, it.tls, it.ws) }
         serverLogin(rs.CUSTOM_ID)?.let {
             out += com.mamaddoom.ridetalk.net.RelayServers.Server(
                 rs.CUSTOM_ID, customServerName().ifEmpty { customServerHost() }, customServerHost(), it.port, 0,
             )
-                .withLogin(it.port, it.user, it.password, it.tls)
+                .withLogin(it.port, it.user, it.password, it.tls, it.ws)
         }
         return out
     }
