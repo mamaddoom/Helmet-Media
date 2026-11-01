@@ -113,7 +113,7 @@ class OnlineTransport(
             for (s in order) {
                 if (!running || crypto !== c) break
                 setStatus(Status.CONNECTING, s)
-                val m = MqttConnection(s.host, s.port, s.user, s.password)
+                val m = MqttConnection(s.host, s.port, s.user, s.password, s.tls)
                 try {
                     m.connect("hm-" + Random.nextLong().toULong().toString(16), CONNECT_TIMEOUT_MS, KEEPALIVE_S)
                 } catch (e: Exception) {

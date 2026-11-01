@@ -57,7 +57,7 @@ class RelayProbeTest {
     }
 
     private fun probe(s: RelayServers.Server, rate: Int): Result {
-        val m = MqttConnection(s.host, s.port, s.user, s.password)
+        val m = MqttConnection(s.host, s.port, s.user, s.password, s.tls)
         val t0 = System.nanoTime()
         try {
             m.connect("hm-probe-" + Random.nextInt(1_000_000), 8000, 30)

@@ -19,6 +19,8 @@ object RelayServers {
         val score: Int,
         val user: String? = null,
         val password: String? = null,
+        /** False for servers that only offer plain TCP; the audio is end-to-end encrypted anyway. */
+        val tls: Boolean = true,
     )
 
     // Probed from GitHub's servers on 2026-10-30 (150 packets of 300 bytes at 50/s and 25/s):
@@ -42,6 +44,8 @@ object RelayServers {
         Server("mosquitto-8883", "Mosquitto (8883)", "test.mosquitto.org", 8883, score = 0),
         Server("emqx-cn", "EMQX (alt)", "broker-cn.emqx.io", 8883, score = 0),
         Server("flespi", "flespi", "mqtt.flespi.io", 8883, score = 0),
+        Server("abrbit-tls", "Abrbit 🇮🇷 (TLS)", "mqtt.services.abrbit.com", 8883, score = 0),
+        Server("abrbit", "Abrbit 🇮🇷", "mqtt.services.abrbit.com", 1883, score = 0, tls = false),
     )
 
     fun byId(id: String) = ALL.firstOrNull { it.id == id }

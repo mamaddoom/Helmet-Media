@@ -102,17 +102,19 @@ object MqttCodec {
 }
 
 /**
- * One TLS connection to a public MQTT broker. The certificate and host name
- * are checked like a browser does; everything we publish is additionally
- * end-to-end encrypted by the caller, so the broker only relays opaque bytes.
+ * One connection to an MQTT broker, over TLS (certificate and host name
+ * checked like a browser does) or, for servers that offer only that, plain
+ * TCP. Everything we publish is end-to-end encrypted by the caller either
+ * way, so the broker only relays opaque bytes.
  */
 class MqttConnection(
     val host: String,
     val port: Int,
     private val user: String? = null,
     private val password: String? = null,
+    private val tls: Boolean = true,
 ) {
-    private var socket: SSLSocket? = null
+    private var socket: Socket? = null
     private var out: OutputStream? = null
     private var input: DataInputStream? = null
     private var nextId = 1
@@ -123,10 +125,16 @@ class MqttConnection(
         val raw = Socket()
         raw.tcpNoDelay = true
         raw.connect(InetSocketAddress(host, port), timeoutMs)
-        val s = (SSLSocketFactory.getDefault() as SSLSocketFactory).createSocket(raw, host, port, true) as SSLSocket
-        s.sslParameters = s.sslParameters.apply { endpointIdentificationAlgorithm = "HTTPS" }
+        val s: Socket = if (tls) {
+            val t = (SSLSocketFactory.getDefault() as SSLSocketFactory).createSocket(raw, host, port, true) as SSLSocket
+            t.sslParameters = t.sslParameters.apply { endpointIdentificationAlgorithm = "HTTPS" }
+            t.soTimeout = timeoutMs
+            t.startHandshake()
+            t
+        } else {
+            raw
+        }
         s.soTimeout = timeoutMs
-        s.startHandshake()
         socket = s
         out = BufferedOutputStream(s.outputStream, 4096)
         input = DataInputStream(s.inputStream.buffered(16 * 1024))
