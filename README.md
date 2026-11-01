@@ -35,7 +35,7 @@
 
 ## دانلود و نصب
 
-1. به بخش [Releases](https://github.com/mamaddoom/headset-talk-and-music/releases) همین مخزن بروید (از مرورگر گوشی).
+1. به بخش [Releases](https://github.com/mamaddoom/Helmet-Media/releases) همین مخزن بروید (از مرورگر گوشی).
 2. آخرین فایل `HelmetMedia-1.0.X.apk` را دانلود کنید.
 3. روی فایل بزنید و نصب کنید (اگر پرسید، اجازهٔ «نصب از منابع ناشناس» را برای مرورگر بدهید).
 4. همین کار را روی گوشی همهٔ افراد گروه انجام دهید.

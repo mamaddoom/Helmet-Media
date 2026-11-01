@@ -166,7 +166,7 @@ class Updater(private val context: Context, private val onChange: () -> Unit) {
     }
 
     companion object {
-        private const val LATEST_URL = "https://api.github.com/repos/mamaddoom/headset-talk-and-music/releases/latest"
+        private const val LATEST_URL = "https://api.github.com/repos/mamaddoom/Helmet-Media/releases/latest"
         private const val APK_MIME = "application/vnd.android.package-archive"
         private const val AUTO_INTERVAL_MS = 12 * 60 * 60 * 1000L
     }
