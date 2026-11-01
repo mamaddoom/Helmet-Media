@@ -30,15 +30,18 @@ object RelayServers {
             Server(id, name, host, port, score, user.ifEmpty { null }, password.ifEmpty { null }, tls, needsLogin, iran)
     }
 
-    // Probed from GitHub's servers on 2026-10-30 (150 packets of 300 bytes at 50/s and 25/s):
-    //   HiveMQ    connect ~0.4-0.6 s, round trip ~115 ms, loss 0%   -> 83
-    //   shiftr.io connect ~0.4-0.6 s, round trip ~128 ms, loss 0%   -> 82
+    // Probed from GitHub's servers, three runs on 2026-10-30 and 11-01
+    // (150 packets of 300 bytes at 50/s and 25/s; connect, round trip, loss):
+    //   shiftr.io ~0.3-0.7 s, ~92-130 ms, 0% loss, always connected      -> 85
+    //   TBMQ      ~0.4-0.5 s, ~123 ms,    0% loss                         -> 82
+    //   HiveMQ    ~0.4-1.3 s, ~90-120 ms, 0% loss, 2 of 6 connects timed out -> 80
     // Left out: EMQX (60-80% loss: rate-limited at voice packet rates), Eclipse and
     // MQTT.Cool (unreachable), Mosquitto (refused the TLS session / self-signed CA),
     // flespi (needs an account), HiveMQ Dashboard alias (certificate name mismatch).
     val ALL: List<Server> = listOf(
-        Server("hivemq", "HiveMQ", "broker.hivemq.com", 8883, score = 83),
-        Server("shiftr", "shiftr.io", "public.cloud.shiftr.io", 8883, score = 82, user = "public", password = "public"),
+        Server("shiftr", "shiftr.io", "public.cloud.shiftr.io", 8883, score = 85, user = "public", password = "public"),
+        Server("tbmq", "TBMQ", "demo.tbmq.io", 8883, score = 82, user = "demo"),
+        Server("hivemq", "HiveMQ", "broker.hivemq.com", 8883, score = 80),
     ).sortedByDescending { it.score }
 
     /**
@@ -65,8 +68,6 @@ object RelayServers {
         Server("mosquitto-8883", "Mosquitto (8883)", "test.mosquitto.org", 8883, score = 0),
         Server("emqx-cn", "EMQX (alt)", "broker-cn.emqx.io", 8883, score = 0),
         Server("flespi", "flespi", "mqtt.flespi.io", 8883, score = 0),
-        // ThingsBoard's public TBMQ demo broker (documented login: user "demo", no password).
-        Server("tbmq", "TBMQ", "demo.tbmq.io", 8883, score = 0, user = "demo"),
         Server("abrbit-tls", "Abrbit 🇮🇷 (TLS)", "mqtt.services.abrbit.com", 8883, score = 0),
         Server("abrbit", "Abrbit 🇮🇷", "mqtt.services.abrbit.com", 1883, score = 0, tls = false),
     )
