@@ -28,6 +28,10 @@ class OnlineTransport(
     private val pinned: () -> String?,
     /** Servers in automatic order, with any logins filled in. Read on every (re)connect. */
     private val servers: () -> List<RelayServers.Server>,
+    /** Privacy mode: constant-rate, same-size, fully encrypted traffic. Read on every (re)connect. */
+    private val privacy: () -> Boolean,
+    /** Hide my IP: reach the relay through this SOCKS proxy (e.g. Tor via Orbot), or null. */
+    private val proxy: () -> java.net.Proxy?,
     private val onStatus: () -> Unit,
 ) : Link {
 
@@ -37,6 +41,12 @@ class OnlineTransport(
         private set
     @Volatile var server: RelayServers.Server? = null
         private set
+    /** Privacy mode and IP hiding as used by the current connection. */
+    @Volatile var privacyActive = false
+        private set
+    @Volatile var hidingIp = false
+        private set
+
     /** Round trip to the relay (ms), from MQTT ping; -1 until measured. */
     @Volatile var rttMs = -1
         private set
@@ -115,7 +125,7 @@ class OnlineTransport(
             for (s in order) {
                 if (!running || crypto !== c) break
                 setStatus(Status.CONNECTING, s)
-                val m = MqttConnection(s.host, s.port, s.user, s.password, s.tls)
+                val m = MqttConnection(s.host, s.port, s.user, s.password, s.tls, proxy())
                 try {
                     m.connect("hm-" + Random.nextLong().toULong().toString(16), CONNECT_TIMEOUT_MS, KEEPALIVE_S)
                 } catch (e: Exception) {
@@ -148,8 +158,15 @@ class OnlineTransport(
         }
         conn = m
         rttMs = -1
+        privacyActive = privacy()
+        hidingIp = proxy() != null
         setStatus(Status.CONNECTED, s)
-        val writer = Thread({ writeLoop(m) }, "rt-online-tx").also { it.start() }
+        val writer = if (privacyActive) {
+            Thread({ coverLoop(m, c) }, "rt-online-tx")
+        } else {
+            Thread({ writeLoop(m) }, "rt-online-tx")
+        }
+        writer.start()
         Process.setThreadPriority(Process.THREAD_PRIORITY_URGENT_AUDIO)
         val buf = ByteArray(Protocol.MAX_PACKET + PacketCrypto.OVERHEAD + 64)
         val scratch = ByteArray(buf.size)
@@ -161,18 +178,12 @@ class OnlineTransport(
                 when (p.type) {
                     MqttCodec.PUBLISH -> {
                         val payload = MqttCodec.parsePublish(p)?.second ?: continue
-                        if (payload.size > buf.size) continue
-                        System.arraycopy(payload, 0, buf, 0, payload.size)
-                        val n = c.open(buf, payload.size, scratch)
-                        if (n < 0) continue // not sealed with our code
-                        bb.clear()
-                        bb.limit(n)
-                        val h = Protocol.readHeader(bb) ?: continue
-                        if (h.sender == myId) continue // the relay echoes our own packets
-                        try {
-                            listener.onPacket(h, from, bb)
-                        } catch (e: Exception) {
-                            Log.w(TAG, "packet handler failed", e)
+                        if (payload.isNotEmpty() && payload[0] == PrivacyFrames.MAGIC) {
+                            // Privacy-mode message (from any rider, whatever our own setting).
+                            val plain = c.openBlob(payload, 1, payload.size - 1) ?: continue
+                            for (inner in PrivacyFrames.unpack(plain)) deliver(inner, c, buf, scratch, bb, from)
+                        } else {
+                            deliver(payload, c, buf, scratch, bb, from)
                         }
                     }
                     MqttCodec.PINGRESP -> if (pingSentAt > 0) {
@@ -190,6 +201,62 @@ class OnlineTransport(
             writer.interrupt()
             writer.join(1000)
             if (running) setStatus(Status.CONNECTING, s)
+        }
+    }
+
+    /** Opens one sealed packet and hands it to the engine. */
+    private fun deliver(
+        packet: ByteArray,
+        c: PacketCrypto,
+        buf: ByteArray,
+        scratch: ByteArray,
+        bb: ByteBuffer,
+        from: InetSocketAddress,
+    ) {
+        if (packet.size > buf.size) return
+        System.arraycopy(packet, 0, buf, 0, packet.size)
+        val n = c.open(buf, packet.size, scratch)
+        if (n < 0) return // not sealed with our code
+        bb.clear()
+        bb.limit(n)
+        val h = Protocol.readHeader(bb) ?: return
+        if (h.sender == myId) return // the relay echoes our own packets
+        try {
+            listener.onPacket(h, from, bb)
+        } catch (e: Exception) {
+            Log.w(TAG, "packet handler failed", e)
+        }
+    }
+
+    /**
+     * Privacy mode sender: exactly one same-size encrypted message every
+     * [PrivacyFrames.TICK_MS], carrying whatever is queued (or nothing).
+     */
+    private fun coverLoop(m: MqttConnection, c: PacketCrypto) {
+        Process.setThreadPriority(Process.THREAD_PRIORITY_URGENT_AUDIO)
+        var next = System.nanoTime()
+        var lastPing = System.currentTimeMillis()
+        try {
+            while (running && conn === m) {
+                val plain = PrivacyFrames.pack(queue)
+                val sealed = c.sealBlob(plain, plain.size)
+                val msg = ByteArray(1 + sealed.size)
+                msg[0] = PrivacyFrames.MAGIC
+                System.arraycopy(sealed, 0, msg, 1, sealed.size)
+                m.publish(topic, msg)
+                val now = System.currentTimeMillis()
+                if (now - lastPing >= PING_EVERY_MS) {
+                    lastPing = now
+                    pingSentAt = now
+                    m.ping()
+                }
+                next += PrivacyFrames.TICK_MS * 1_000_000
+                val wait = (next - System.nanoTime()) / 1_000_000
+                if (wait > 0) Thread.sleep(wait) else next = System.nanoTime() // fell behind: don't burst
+            }
+        } catch (_: InterruptedException) {
+        } catch (_: Exception) {
+            m.close()
         }
     }
 

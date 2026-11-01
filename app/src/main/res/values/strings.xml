@@ -321,4 +321,9 @@
     <string name="srv_note">Saved only on this phone. Every rider in the group needs the same server. Voice stays encrypted with your group code, so the server can’t hear it.</string>
     <string name="srv_save">Save</string>
     <string name="srv_remove">Remove</string>
+    <string name="privacy_mode">🕶 Privacy mode</string>
+    <string name="privacy_mode_note">Online only. Sends a steady stream of same-size encrypted messages even in silence, so the server and your internet provider can’t tell when anyone talks or plays music. Uses about 20–25 MB more per hour. Off by default.</string>
+    <string name="hide_ip">🙈 Hide my IP</string>
+    <string name="hide_ip_note">Connects to the server through Tor (install and start the free Orbot app) or another SOCKS proxy, so the server never sees your real IP. Adds delay (often 0.3–1 s through Tor). If the proxy isn’t running, the app doesn’t connect at all rather than reveal your IP. Simpler alternative: turn on any VPN on the phone.</string>
+    <string name="proxy_hint">Proxy address (Orbot: 127.0.0.1:9050)</string>
 </resources>

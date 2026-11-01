@@ -58,6 +58,28 @@ class Settings(context: Context) {
         get() = p.getString("onlineServer", "").orEmpty()
         set(v) = p.edit().putString("onlineServer", v).apply()
 
+    /** Privacy mode (online): steady same-size encrypted traffic, so nobody can tell when you talk. */
+    var privacyMode: Boolean
+        get() = p.getBoolean("privacyMode", false)
+        set(v) = p.edit().putBoolean("privacyMode", v).apply()
+
+    /** Hide my IP (online): reach the relay through a SOCKS proxy such as Tor (Orbot). */
+    var hideIp: Boolean
+        get() = p.getBoolean("hideIp", false)
+        set(v) = p.edit().putBoolean("hideIp", v).apply()
+
+    /** host:port of that proxy; Orbot's default is 127.0.0.1:9050. */
+    var proxyAddress: String
+        get() = p.getString("proxyAddress", "127.0.0.1:9050").orEmpty()
+        set(v) = p.edit().putString("proxyAddress", v.trim()).apply()
+
+    fun proxy(): java.net.Proxy? {
+        if (!hideIp) return null
+        val host = proxyAddress.substringBeforeLast(':').ifEmpty { "127.0.0.1" }
+        val port = proxyAddress.substringAfterLast(':').toIntOrNull() ?: 9050
+        return java.net.Proxy(java.net.Proxy.Type.SOCKS, java.net.InetSocketAddress.createUnresolved(host, port))
+    }
+
     /** A login typed on this phone for a server that needs one: port, user, password, TLS. */
     class ServerLogin(val port: Int, val user: String, val password: String, val tls: Boolean)
 

@@ -113,6 +113,8 @@ class MqttConnection(
     private val user: String? = null,
     private val password: String? = null,
     private val tls: Boolean = true,
+    /** Reach the broker through this (SOCKS) proxy, e.g. Tor, so the broker never sees our IP. */
+    private val proxy: java.net.Proxy? = null,
 ) {
     private var socket: Socket? = null
     private var out: OutputStream? = null
@@ -122,9 +124,11 @@ class MqttConnection(
 
     /** Connects and logs in; throws on any failure (DNS, TLS, refused login, timeout). */
     fun connect(clientId: String, timeoutMs: Int = 6000, keepAliveS: Int = 30) {
-        val raw = Socket()
+        val raw = if (proxy != null) Socket(proxy) else Socket()
         raw.tcpNoDelay = true
-        raw.connect(InetSocketAddress(host, port), timeoutMs)
+        // Through a proxy the name is resolved by the proxy (no DNS lookup leaks from the phone).
+        val target = if (proxy != null) InetSocketAddress.createUnresolved(host, port) else InetSocketAddress(host, port)
+        raw.connect(target, if (proxy != null) timeoutMs * 3 else timeoutMs)
         val s: Socket = if (tls) {
             val t = (SSLSocketFactory.getDefault() as SSLSocketFactory).createSocket(raw, host, port, true) as SSLSocket
             t.sslParameters = t.sslParameters.apply { endpointIdentificationAlgorithm = "HTTPS" }

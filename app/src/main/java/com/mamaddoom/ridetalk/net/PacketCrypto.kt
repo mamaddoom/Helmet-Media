@@ -76,6 +76,28 @@ class PacketCrypto(
         }
     }
 
+    /** Seals a whole blob with a random nonce (privacy-mode wrapper): nonce + ciphertext + tag. */
+    fun sealBlob(src: ByteArray, len: Int): ByteArray {
+        val nonce = ByteArray(NONCE).also { rng.nextBytes(it) }
+        val c = ciphers.get()!!
+        c.init(Cipher.ENCRYPT_MODE, key, GCMParameterSpec(TAG_BITS, nonce))
+        return nonce + c.doFinal(src, 0, len)
+    }
+
+    /** Opens [sealBlob] output; null if it isn't ours. */
+    fun openBlob(src: ByteArray, off: Int, len: Int): ByteArray? {
+        if (len < NONCE + TAG_BITS / 8) return null
+        return try {
+            val c = ciphers.get()!!
+            c.init(Cipher.DECRYPT_MODE, key, GCMParameterSpec(TAG_BITS, src, off, NONCE))
+            c.doFinal(src, off + NONCE, len - NONCE)
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private val rng = java.security.SecureRandom()
+
     private fun nonce(header: ByteArray): ByteArray {
         val n = nonces.get()!!
         val b = ByteBuffer.wrap(n).order(ByteOrder.LITTLE_ENDIAN)

@@ -39,6 +39,7 @@ import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.SeekBar
+import android.widget.Switch
 import android.widget.TextView
 import android.widget.Toast
 import com.mamaddoom.ridetalk.net.Transport
@@ -723,7 +724,32 @@ class HomeActivity : Activity() {
             })
         }
         buildServerList()
+        val swPrivacy = findViewById<Switch>(R.id.swPrivacy)
+        val swHideIp = findViewById<Switch>(R.id.swHideIp)
+        swPrivacy.isChecked = settings.privacyMode
+        swHideIp.isChecked = settings.hideIp
+        swPrivacy.setOnCheckedChangeListener { _, on ->
+            settings.privacyMode = on
+            engine?.reconnectOnline()
+            renderConnection(engine?.takeIf { it.running }?.state())
+        }
+        swHideIp.setOnCheckedChangeListener { _, on ->
+            settings.hideIp = on
+            engine?.reconnectOnline()
+            renderConnection(engine?.takeIf { it.running }?.state())
+        }
+        findViewById<EditText>(R.id.editProxy).apply {
+            setText(settings.proxyAddress)
+            addTextChangedListener(afterChange {
+                if (!hasFocus()) return@afterChange
+                settings.proxyAddress = it
+                uiHandler.removeCallbacks(reconnectAfterProxyEdit)
+                uiHandler.postDelayed(reconnectAfterProxyEdit, 1200)
+            })
+        }
     }
+
+    private val reconnectAfterProxyEdit = Runnable { if (settings.hideIp) engine?.reconnectOnline() }
 
     private fun chooseOnline(on: Boolean) {
         if (settings.online == on) return
@@ -882,8 +908,9 @@ class HomeActivity : Activity() {
             st == null || !st.online -> getString(R.string.online_off)
             else -> when (st.onlineStatus) {
                 com.mamaddoom.ridetalk.net.OnlineTransport.Status.CONNECTED ->
-                    if (st.onlineRttMs >= 0) getString(R.string.online_connected_rtt, st.onlineServer, st.onlineRttMs)
-                    else getString(R.string.online_connected, st.onlineServer)
+                    (if (st.privacyActive) "🕶 " else "") + (if (st.hidingIp) "🙈 " else "") +
+                        if (st.onlineRttMs >= 0) getString(R.string.online_connected_rtt, st.onlineServer, st.onlineRttMs)
+                        else getString(R.string.online_connected, st.onlineServer)
                 com.mamaddoom.ridetalk.net.OnlineTransport.Status.NO_CODE -> getString(R.string.online_no_code)
                 com.mamaddoom.ridetalk.net.OnlineTransport.Status.OFFLINE -> getString(R.string.online_offline)
                 else -> getString(R.string.online_connecting, st.onlineServer.ifEmpty { "…" })
@@ -897,6 +924,7 @@ class HomeActivity : Activity() {
         findViewById<Button>(R.id.btnConnOnline).isSelected = on
         findViewById<View>(R.id.onlinePanel).visibility = if (on) View.VISIBLE else View.GONE
         if (!on) return
+        findViewById<View>(R.id.editProxy).visibility = if (settings.hideIp) View.VISIBLE else View.GONE
         findViewById<TextView>(R.id.onlineStatus).text = onlineStatusText(st)
         val field = findViewById<EditText>(R.id.editGroupOnline)
         if (!field.hasFocus() && field.text.toString() != settings.groupCode) field.setText(settings.groupCode)

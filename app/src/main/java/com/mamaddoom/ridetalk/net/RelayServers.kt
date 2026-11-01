@@ -45,14 +45,12 @@ object RelayServers {
     ).sortedByDescending { it.score }
 
     /**
-     * Iranian servers: free Mosquitto brokers that need an account of your own
-     * (Runflare: your app's login; Abrbit: your account). Not scored: they can't
-     * be measured from outside Iran. Tried after the public ones in automatic mode,
-     * and only once their login is filled in.
+     * Iranian server: the project's free Mosquitto on Runflare, which needs its
+     * login typed on the phone. Not scored: it can't be measured from outside
+     * Iran. Tried after the public ones in automatic mode, once the login is set.
      */
     val IRAN: List<Server> = listOf(
         Server("runflare", "Runflare", "mqtt-slw-mqtt.runflare.cloud", 1883, score = 0, user = "mqtt", tls = false, needsLogin = true, iran = true),
-        Server("abrbit", "Abrbit", "mqtt.services.abrbit.com", 1883, score = 0, tls = false, needsLogin = true, iran = true),
     )
 
     /** Id of the user's own server, set up on the phone. */
@@ -68,8 +66,6 @@ object RelayServers {
         Server("mosquitto-8883", "Mosquitto (8883)", "test.mosquitto.org", 8883, score = 0),
         Server("emqx-cn", "EMQX (alt)", "broker-cn.emqx.io", 8883, score = 0),
         Server("flespi", "flespi", "mqtt.flespi.io", 8883, score = 0),
-        Server("abrbit-tls", "Abrbit 🇮🇷 (TLS)", "mqtt.services.abrbit.com", 8883, score = 0),
-        Server("abrbit", "Abrbit 🇮🇷", "mqtt.services.abrbit.com", 1883, score = 0, tls = false),
     )
 
     fun byId(id: String) = (ALL + IRAN).firstOrNull { it.id == id }

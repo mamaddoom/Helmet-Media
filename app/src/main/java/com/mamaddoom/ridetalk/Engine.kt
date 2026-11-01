@@ -127,6 +127,8 @@ class Engine(
         val onlineStatus: OnlineTransport.Status?,
         val onlineServer: String,
         val onlineRttMs: Int,
+        val privacyActive: Boolean,
+        val hidingIp: Boolean,
     )
 
     val settings = Settings(context)
@@ -242,7 +244,10 @@ class Engine(
         startedMs = System.currentTimeMillis()
         lastPeerMs = 0
         transport = if (settings.online) {
-            OnlineTransport(myId, this, { settings.onlineServer.ifEmpty { null } }, settings::relayServers, ::notifyState)
+            OnlineTransport(
+                myId, this, { settings.onlineServer.ifEmpty { null } }, settings::relayServers,
+                { settings.privacyMode }, settings::proxy, ::notifyState,
+            )
         } else {
             Transport(context, myId, this)
         }
@@ -547,6 +552,9 @@ class Engine(
         if (code.length < MIN_ONLINE_CODE) return null
         return PacketCrypto(code, PacketCrypto.ONLINE_ITERATIONS, PacketCrypto.ONLINE_SALT)
     }
+
+    /** Privacy mode / IP hiding changed: reconnect so the new setting takes effect. */
+    fun reconnectOnline() = onCtl { transport.crypto = transport.crypto }
 
     /** Pins a relay server by id, or "" for automatic; reconnects at once. */
     fun setOnlineServer(id: String) {
@@ -1189,6 +1197,8 @@ class Engine(
             onlineStatus = (transport as? OnlineTransport)?.status,
             onlineServer = (transport as? OnlineTransport)?.server?.name.orEmpty(),
             onlineRttMs = (transport as? OnlineTransport)?.rttMs ?: -1,
+            privacyActive = (transport as? OnlineTransport)?.privacyActive == true,
+            hidingIp = (transport as? OnlineTransport)?.hidingIp == true,
         )
     }
 
